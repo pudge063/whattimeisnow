@@ -1,0 +1,8 @@
+#SPDX-License-Identifier: MIT-0
+galaxy_info:
+  author: pudge_vibes
+  description: Deploys a minimal static HTML clock to a Lada XRAY head unit via Ansible.
+  company: PivLab Space
+  license: MIT
+
+  min_ansible_version: 12.0.0

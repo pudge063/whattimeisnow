@@ -1,0 +1,7 @@
+#SPDX-License-Identifier: MIT-0
+---
+# handlers file for roles/whattimeisnow
+- name: restart xray
+  ansible.builtin.service:
+    name: xray
+    state: restarted

@@ -1,0 +1,11 @@
+---
+- name: whattimeisnow
+  hosts: whattimeisnow
+  become: true
+  roles:
+    - roles/whattimeisnow
+  vars:
+    domain: "DOMAIN.SITE"
+    xray_dir: "/usr/local/etc/xray"
+    xray_certs_dir: "{{ xray_dir }}/xray_cert"
+    mainuser_path: "/usr/local/bin/mainuser"

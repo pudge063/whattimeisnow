@@ -1,0 +1,8 @@
+*.venv*
+*.jar
+*.bin
+*.pem
+
+roles/vault/files/vault
+roles/jira/files/*
+*.venv*

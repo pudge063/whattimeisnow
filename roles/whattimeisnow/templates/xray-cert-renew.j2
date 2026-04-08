@@ -1,0 +1,4 @@
+#!/bin/bash
+$PWD/.acme.sh --install-cert -d "{{domain}}" --ecc --fullchain-file /usr/local/etc/xray/xray_cert/xray.crt --key-file /usr/local/etc/xray/xray_cert/xray.key
+chmod +r /usr/local/etc/xray/xray_cert/xray.key
+sudo systemctl restart xray

@@ -1,0 +1,137 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/whattimeisnow
+- name: update packages
+  ansible.builtin.apt:
+    install_recommends: false
+    update_cache: yes
+    upgrade: yes
+  tags: [initial]
+
+- name: install packages
+  ansible.builtin.apt:
+    name:
+      - curl
+      - wget
+      - nginx
+      - qrencode
+      - jq
+    state: present
+    update_cache: yes
+  tags: [initial]
+
+- name: generate certificates
+  ansible.builtin.shell:
+    cmd: |
+      wget -O -  https://get.acme.sh | sh
+      ~/.acme.sh/acme.sh --upgrade --auto-upgrade
+      ~/.acme.sh/acme.sh --issue --server letsencrypt -d {{domain}} -w /var/www/html --keylength ec-256 --force
+      ~/.acme.sh/acme.sh --installcert -d {{domain}} \
+      --cert-file ~/.acme.sh/{{domain}}_ecc/{{domain}}.cer \
+      --key-file ~/.acme.sh/{{domain}}_ecc/{{domain}}.key \
+      --fullchain-file ~/.acme.sh/{{domain}}_ecc/fullchain.cer \
+      --ecc
+
+- name: create xray certificates directory
+  ansible.builtin.file:
+    path: "{{ xray_certs_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: install certificates
+  ansible.builtin.shell:
+    cmd: |
+      ~/.acme.sh/acme.sh --install-cert -d {{domain}} --ecc \
+      --fullchain-file {{ xray_certs_dir }}/xray.crt \
+      --key-file {{ xray_certs_dir }}/xray.key
+      chmod +r {{ xray_certs_dir }}/xray.key
+
+- name: create certificates renew script
+  ansible.builtin.template:
+    src: "xray-cert-renew.j2"
+    dest: "{{ xray_certs_dir }}/xray-cert-renew"
+    mode: "0777"
+
+- name: enable renew certificates in cron
+  ansible.builtin.shell:
+    cmd: crontab -l | grep -q "xray-cert-renew" || (crontab -l; echo "0 1 1 * *   bash {{ xray_certs_dir }}/xray-cert-renew") | crontab -
+
+- name: load tcp_bbr module
+  community.general.modprobe:
+    name: tcp_bbr
+    state: present
+
+- name: set sysctl parameters for bbr
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: true
+  loop:
+    - { name: "net.core.default_qdisc", value: "fq" }
+    - { name: "net.ipv4.tcp_congestion_control", value: "bbr" }
+
+- name: install xray
+  ansible.builtin.shell: |
+    bash -c "$(curl -4 -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
+
+- name: get xray shortsid
+  ansible.builtin.command: openssl rand -hex 8
+  register: shortsid
+  tags: [xray-reconfigure]
+
+- name: get xray uuid
+  ansible.builtin.command: xray uuid
+  register: uuid
+  tags: [xray-reconfigure]
+
+- name: generate .keys file
+  ansible.builtin.template:
+    src: ".keys.j2"
+    dest: "{{ xray_dir }}/.keys"
+    mode: "0644"
+  tags: [xray-reconfigure]
+
+- name: generate xray configuration file
+  ansible.builtin.template:
+    src: "config.json.j2"
+    dest: "{{ xray_dir }}/config.json"
+    mode: "0644"
+  tags: [xray-reconfigure]
+  notify: restart xray
+
+- name: create file for mainuser
+  ansible.builtin.copy:
+    src: "mainuser"
+    dest: "{{ mainuser_path }}"
+    mode: "0777"
+
+- name: update site content
+  ansible.builtin.copy:
+    src: "whattimeisnow.html"
+    dest: "/var/www/html/index.html"
+  tags: [nginx]
+
+- name: configure nginx
+  ansible.builtin.template:
+    src: "nginx_config.j2"
+    dest: "/etc/nginx/sites-available/default"
+    mode: "0644"
+  tags: [nginx]
+
+- name: restart nginx service
+  ansible.builtin.service:
+    name: nginx
+    state: restarted
+  tags: [nginx]
+
+- name: register links and qr-code
+  ansible.builtin.command: "{{ mainuser_path }}"
+  register: mainuser
+  tags: [mainuser]
+
+- name: show links and qr-code
+  ansible.builtin.debug:
+    msg: "{{ (mainuser.stdout | from_json).connection_link }}"
+  when: mainuser is defined
+  tags: [mainuser]

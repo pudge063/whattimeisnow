@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Time Is Now — Finland</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .clock {
+            text-align: center;
+        }
+
+        .time {
+            font-size: 5rem;
+            font-weight: 400;
+            color: black;
+            letter-spacing: 2px;
+            font-family: 'SF Mono', 'Fira Mono', 'Courier New', monospace;
+            line-height: 1.2;
+        }
+
+        .date {
+            font-size: 1rem;
+            color: #333;
+            margin-top: 12px;
+            font-weight: 350;
+        }
+
+        .location {
+            font-size: 0.75rem;
+            color: #777;
+            margin-top: 24px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        @media (max-width: 500px) {
+            .time {
+                font-size: 3rem;
+            }
+
+            .date {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="clock">
+        <div class="time" id="currentTime">--:--:--</div>
+        <div class="date" id="currentDate">--</div>
+        <div class="location">Finland · Europe/Helsinki</div>
+    </div>
+
+    <script>
+        (function () {
+            const TIMEZONE = 'Europe/Helsinki';
+
+            function pad(n) {
+                return n < 10 ? '0' + n : String(n);
+            }
+
+            function updateClock() {
+                const now = new Date();
+
+                const formatter = new Intl.DateTimeFormat('en-GB', {
+                    timeZone: TIMEZONE,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false,
+                    year: 'numeric',
+                    month: 'numeric',
+                    day: 'numeric'
+                });
+
+                const parts = formatter.formatToParts(now);
+                let hour = '', minute = '', second = '';
+                let day = '', month = '', year = '';
+
+                for (const part of parts) {
+                    if (part.type === 'hour') hour = part.value;
+                    if (part.type === 'minute') minute = part.value;
+                    if (part.type === 'second') second = part.value;
+                    if (part.type === 'day') day = part.value;
+                    if (part.type === 'month') month = part.value;
+                    if (part.type === 'year') year = part.value;
+                }
+
+                const timeString = `${hour}:${minute}:${second}`;
+
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                const monthIndex = parseInt(month, 10) - 1;
+                const monthName = monthNames[monthIndex] || month;
+                const dateString = `${parseInt(day, 10)} ${monthName} ${year}`;
+
+                document.getElementById('currentTime').textContent = timeString;
+                document.getElementById('currentDate').textContent = dateString;
+            }
+
+            function fallbackUpdate() {
+                try {
+                    const now = new Date();
+                    const finlandTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Helsinki' }));
+                    const hours = pad(finlandTime.getHours());
+                    const minutes = pad(finlandTime.getMinutes());
+                    const seconds = pad(finlandTime.getSeconds());
+                    const timeStr = `${hours}:${minutes}:${seconds}`;
+
+                    const year = finlandTime.getFullYear();
+                    const month = finlandTime.toLocaleString('en-US', { month: 'long', timeZone: 'Europe/Helsinki' });
+                    const day = finlandTime.getDate();
+                    const dateStr = `${day} ${month} ${year}`;
+
+                    document.getElementById('currentTime').textContent = timeStr;
+                    document.getElementById('currentDate').textContent = dateStr;
+                } catch (e) {
+                    const d = new Date();
+                    document.getElementById('currentTime').textContent = d.toLocaleTimeString('en-GB');
+                    document.getElementById('currentDate').textContent = d.toLocaleDateString('en-GB');
+                }
+            }
+
+            let intervalId;
+
+            function tick() {
+                try {
+                    updateClock();
+                } catch (err) {
+                    fallbackUpdate();
+                }
+            }
+
+            tick();
+            intervalId = setInterval(tick, 1000);
+
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden) {
+                    if (intervalId) {
+                        clearInterval(intervalId);
+                        intervalId = null;
+                    }
+                } else {
+                    if (!intervalId) {
+                        tick();
+                        intervalId = setInterval(tick, 1000);
+                    }
+                }
+            });
+        })();
+    </script>
+</body>
+
+</html>
